@@ -1,0 +1,80 @@
+import express from "express";
+import fetch from "node-fetch";
+import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.send("Compra Fácil IA - Backend OK");
+});
+
+app.post("/analyze", async (req, res) => {
+  const { title, price } = req.body;
+
+  if (!title) {
+    return res.status(400).json({ error: "Dados insuficientes" });
+  }
+
+  const prompt = `
+Analise o produto abaixo como um comprador experiente.
+
+Produto: ${title}
+Preço: ${price}
+
+Responda neste formato:
+
+RESUMO:
+(frase curta)
+
+PRÓS:
+- item 1
+- item 2
+
+CONTRAS:
+- item 1
+- item 2
+
+VEREDITO:
+(frase objetiva)
+`;
+
+  try {
+    const response = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.4
+        })
+      }
+    );
+
+    const json = await response.json();
+
+    if (!json.choices || !json.choices.length) {
+      return res.status(500).json({ error: "IA sem resposta" });
+    }
+
+    res.json({ result: json.choices[0].message.content });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro ao chamar IA" });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Backend rodando na porta", PORT);
+});
