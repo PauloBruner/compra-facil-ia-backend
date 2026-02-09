@@ -1,37 +1,27 @@
 import express from "express";
 import fetch from "node-fetch";
-import cors from "cors";
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-// LINKS AFILIADOS
-const amazon = (q) =>
-  `https://www.amazon.com.br/s?k=${encodeURIComponent(q)}&tag=precafacil-20`;
-
-const magalu = (q) =>
-  `https://www.magazinevoce.com.br/magazinepcvendedor/busca/${encodeURIComponent(q)}/`;
-
-const mercadoLivre = (q) =>
-  `https://lista.mercadolivre.com.br/${encodeURIComponent(q)}`;
+app.get("/", (req, res) => {
+  res.send("CompraCerta IA backend ativo 🚀");
+});
 
 app.post("/analyze", async (req, res) => {
-  const { title, price } = req.body;
+  try {
+    const { title, price, site } = req.body;
 
-  if (!title) {
-    return res.status(400).json({ error: "Produto inválido" });
-  }
+    if (!title || !price) {
+      return res.status(400).json({ error: "Dados insuficientes" });
+    }
 
-  const prompt = `
-Analise o produto abaixo como um comprador experiente.
+    const prompt = `
+Você é um comprador experiente.
 
-Produto: ${title}
-Preço: ${price}
-
-Responda EXATAMENTE neste formato:
+Analise o produto abaixo e responda EXATAMENTE neste formato:
 
 RESUMO:
 (frase curta)
@@ -46,11 +36,14 @@ CONTRAS:
 - item
 
 VEREDITO:
-(frase objetiva)
+(frase direta)
+
+Produto: ${title}
+Preço atual: ${price}
+Site: ${site}
 `;
 
-  try {
-    const ai = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENAI_KEY}`,
@@ -63,22 +56,35 @@ VEREDITO:
       })
     });
 
-    const json = await ai.json();
-    const text = json.choices[0].message.content;
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content;
+
+    if (!text) {
+      return res.status(500).json({ error: "IA sem resposta" });
+    }
+
+    // links afiliados (busca alternativa)
+    const encoded = encodeURIComponent(title);
+
+    const affiliates = {
+      amazon: `https://www.amazon.com.br/s?k=${encoded}&tag=precafacil-20`,
+      magalu: `https://www.magazinevoce.com.br/magazinepcvendedor/busca/${encoded}/`,
+      shopee: `https://shopee.com.br/search?keyword=${encoded}`,
+      mercadolivre: `https://www.mercadolivre.com.br/jm/search?as_word=${encoded}`
+    };
 
     res.json({
       analysis: text,
-      offers: [
-        { loja: "Amazon", url: amazon(title) },
-        { loja: "Magalu", url: magalu(title) },
-        { loja: "Mercado Livre", url: mercadoLivre(title) }
-      ]
+      affiliates
     });
-  } catch (e) {
-    res.status(500).json({ error: "Erro ao consultar IA" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno IA" });
   }
 });
 
-app.listen(10000, () => {
-  console.log("Servidor rodando na porta 10000");
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log("Servidor rodando na porta", PORT);
 });
