@@ -6,25 +6,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ===============================
-   CONFIGURAÇÕES GERAIS
-================================ */
-
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
-const GOOGLE_TTS_KEY = process.env.GOOGLE_TTS_KEY;
 const FREE_LIMIT = parseInt(process.env.FREE_LIMIT || "2", 10);
 
-/* ===============================
-   ROTA RAIZ
-================================ */
-
 app.get("/", (req, res) => {
-  res.send("CompraCerta IA + FluentVoice backend ativo 🚀");
+  res.send("CompraCerta IA backend ativo 🚀");
 });
-
-/* ===============================
-   COMPRA FÁCIL IA (JÁ EXISTENTE)
-================================ */
 
 app.post("/analyze", async (req, res) => {
   try {
@@ -116,54 +103,5 @@ Site atual: ${site}
   }
 });
 
-/* ===============================
-   FLUENTVOICE — VOZ PREMIUM PT-BR
-================================ */
-
-app.post("/api/fluentvoice/tts", async (req, res) => {
-  const { text } = req.body;
-
-  if (!text) {
-    return res.status(400).json({ error: "Texto é obrigatório" });
-  }
-
-  try {
-    const response = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_TTS_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          input: { text },
-          voice: {
-            languageCode: "pt-BR",
-            name: "pt-BR-Neural2-B"
-          },
-          audioConfig: {
-            audioEncoding: "MP3"
-          }
-        })
-      }
-    );
-
-    const data = await response.json();
-
-    if (!data.audioContent) {
-      return res.status(500).json({ error: "Falha ao gerar áudio" });
-    }
-
-    res.json({ audio: data.audioContent });
-
-  } catch (err) {
-    res.status(500).json({ error: "Erro no FluentVoice TTS" });
-  }
-});
-
-/* ===============================
-   SERVIDOR
-================================ */
-
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () =>
-  console.log("Servidor rodando na porta", PORT)
-);
+app.listen(PORT, () => console.log("Servidor rodando na porta", PORT));
